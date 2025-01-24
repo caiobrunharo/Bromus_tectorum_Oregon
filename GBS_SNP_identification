@@ -1,0 +1,16 @@
+## First, raw sequencing data were demultiplex data with stacks 
+process_radtags -p demultiplexed_directory  -o demultiplexed_directory -b sample_barcodes.tsv -e pstI -r -c -q --inline_null --threads 48 --paired
+
+## Second, demultiplexed sequences were aligned to the Bromus tectorum reference genome with bwa, after genome indexing. We also added read groups and sorted files with samtools
+bwa index BroTe_v01.fasta
+bwa mem -t 48 -R '@RG\tID:'${sample}'\tSM:'${sample} -M BroTe_v01.fasta demultiplexed_directory/${sample}.1.fq.gz demultiplexed_directory/${sample}.2.fq.gz | samtools view -bh -@ 48 - | samtools sort -@ 48 -O bam -o ./${sample}.sorted.bam -
+
+## Third, we ran the ref_map module of Stacks on the bam files, including the popmap.txt file containing the name of each sample and population or origin
+ref_map.pl --samples demultiplexed_directory --popmap ./popmap.tsv --out-path ./refmap -T 30
+
+## Fourth, data were filtered to include SNPS present in at least 90% of the population in all B. tectorum populations
+populations -P demultiplexed_directory -t 20 -O ./ -M demultiplexed_directory/popmap.tsv -r 0.90 --vcf -p 21
+
+## Lastly, we generated bootstrap P-values for population summary statistics
+populations -P demultiplexed_directory -t 20 -O ./ -M demultiplexed_directory/popmap.tsv -r 0.90 --vcf -p 21 -k --bootstrap-archive
+populations -P demultiplexed_directory -t 20 -O ./ -M demultiplexed_directory/popmap.tsv -r 0.90 --vcf -p 21 -k --bootstrap
