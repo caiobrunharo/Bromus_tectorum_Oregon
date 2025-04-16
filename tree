@@ -1,0 +1,71 @@
+library(dplyr)
+library(calibrate)
+library(ggfortify)
+library(ggplot2)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(ggrepel)
+library("phyclust")
+library(adegenet)
+library(vcfR)
+library(ggtree)
+
+vcf <- read.vcfR('./all_pops.vcf', verbose = F)
+my_genind <- vcfR2genind(vcf)
+popmapA = read.table('./coords.txt', col.names=c('sample', 'population', 'y', 'x'), row.names='sample') # This is a file containing the geographical coordinates of each individual
+
+pop(my_genind) = popmapA[indNames(my_genind), 'population']
+my_genind$other$xy <- popmapA[c('x', 'y')]
+
+coordinates = read.table('./coordinates.txt', header = T) # this is a file with the geographical coordinates for each population.
+
+toto <- genind2genpop(my_genind)
+toto$other$xy <- coordinates[,c(1,2)]
+Dgen <- dist.genpop(toto, method=2)
+Dgeo <- dist(toto$other$xy, method = "euclidean")
+
+tree<-nj(Dgen)
+class(tree)
+tree<-ladderize(tree)
+plot(tree,cex=.6)
+title("AsimpleNJtree")
+colors= c(GIL3 = "#FF0000",
+            MOR14 = "#00FF00",
+            MOR10 = "#00BFFF",
+            UDB1 = "#000000",
+            UDB9 = "#FFFF00",
+            UMA7 = "#FF8C00",
+            UMA8 = "#FFB6C1",
+            SHE9 = "#9370DB",
+            WAS8 = "#A9A9A9",
+            MOR3 = "#008080",
+            MOR1 = "#FA8072",
+            GIL5 = "#556B2F",
+            SHE4 = "#E6E6FA",
+            SHE7 = "#6495ED",
+            SHE6 = "#800080",
+            MOR5 = "#FF4500",
+            MOR15 = "#7FFF00",
+            UMA14 = "#DC143C",
+            UMA15 = "#00CED1",
+            UMA2 = "#FF6347",
+            WAS5 = "#4682B4",
+            WAS6 = "#FFDAB9")
+
+write.tree(tree, "tree.tre")
+tree <- read.tree("tree.tre")
+tree$tip.label
+
+outgroup_taxa <- "WAS6"
+
+rooted_tree <- root(tree, outgroup = outgroup_taxa, resolve.root = TRUE)
+
+ggtree(rooted_tree, branch.length='none') +
+  geom_treescale(x=40, y=0, fontsize=6, linesize=2, offset=2) +
+  xlim(-0.01, NA) +
+  geom_text2(aes(label=label), hjust=-.3, size=4) +
+  theme(legend.text = element_text(size=20)) +
+  theme(legend.title = element_blank()) +
+  geom_tippoint(aes(size=4, alpha=0.5, na.rm=TRUE), colour = colors)
+
