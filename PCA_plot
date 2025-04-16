@@ -1,0 +1,71 @@
+library(dplyr)
+library(calibrate)
+library(ggfortify)
+library(ggplot2)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(ggrepel)
+library(adegenet)
+library(vcfR)
+library(MASS)
+library(vcfR)
+library(ggplot2)
+library(reshape)
+
+
+all_pops_no_out <- read.table("./PCA_genotypes.txt", sep= "\t", header=T)
+
+all_r502_pre_no_out <- all_pops_no_out[,-c(1:2)]
+
+table <- sapply(all_r502_no_outg[,1:92], function(x) table(x))
+
+numeric_matrix_all_r502_outg=t(all_r502_no_outg)# transpose SNPs into columns. This makes numbers as factors
+numeric_matrix_all_r502_outg=data.frame(numeric_matrix_all_r502_outg) # now numbers are as numericc
+
+Mono_all_r502_outg=apply(numeric_matrix_all_r502_outg,2,function (x){length(table(x))})
+numeric_matrix_all_r502_outg=numeric_matrix_all_r502_outg[,Mono_all_r502_outg>1] # remove monomorphic SNPs
+
+pca_matrix_all_r502_outg = scale(numeric_matrix_all_r502_outg) # All snps will contribute equal variance regardless of MAF
+pca_matrix_noNA_all_r502_outg = apply(pca_matrix_all_r502_outg, 2, function (x) {ifelse(is.na(x), 0, x)}) # Impute NAs to mean (0)
+
+eig_all_r502_outg = prcomp(pca_matrix_noNA_all_r502_outg, center = T) #Performs singular value decomposition of the data matrix
+eigenvalues_all_r502_outg = (eig_all_r502_outg$sdev)^2 #Sum of squared factor loadings = variance explained by each PC
+scores_all_r502_outg = eig_all_r502_outg$x # Scores for the principal components, ie: PC values
+loadings_all_r502_outg = eig_all_r502_outg$rotation # Loadings, ie: how much does each SNP contribute to each PC?
+
+# Compute the % variance explained by the first 10 pcs
+pc_vars_all_r502_outg=c()
+for (i in 1:10){
+  pc_vars_all_r502_outg[i]=round((eigenvalues_all_r502_outg[i]/sum(eigenvalues_all_r502_outg)) * 100, 1)
+}
+
+#Scree plot
+plot(pc_vars_all_r502_outg) 
+
+df_out_all_r502_outg2 <- read.csv("poplist.csv", header = T) # This csv file is a file containing the eigenvalues, population names, sample names, types of mutations.
+
+df_out_all_r502_outg2$Mutation <- factor(df_out_all_r502_outg2$Mutation, levels = c("Ala205Val", "Pro197His", "Pro197Leu", "Pro197Ser", "Pro197Thr", "NTSR", "Susceptible"))
+
+ggplot(df_out_all_r502_outg2,aes(x=PC1,y=PC2, color = Mutation)) + geom_point(size = 10, alpha = 1) +
+  xlab ("PC1 (7.6%)") + ylab ("PC3 (3.9%)") +
+  geom_hline(yintercept = 0, linetype = "dashed", color="black", alpha=0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color="black", alpha=0.2) +
+  xlim(-600,300) +
+  ylim(-300,300) +
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=25), 
+        panel.background = element_rect(fill = "white", colour = "black"), 
+        panel.border = element_rect(colour = "black", fill=NA, size=1),
+        legend.key.size = unit(0.5, "in"))+  
+  scale_color_manual(values = c("Ala205Val" = "#1f77b4",
+                                "Pro197His" = "#ff7f0e",
+                                "Pro197Leu" = "#2ca02c", 
+                                "Pro197Thr" = "#d62728", 
+                                "NTSR" = "#8c564b", 
+                                "Susceptible" = "#800080"))
